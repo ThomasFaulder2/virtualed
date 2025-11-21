@@ -12,7 +12,7 @@ steps:
   - name: "gcr.io/cloud-builders/docker"
     args: [
       "push",
-      "australia-southeast1-docker.pkg.dev/$PROJECT_ID/my-repo/cloud-run-site:$COMMIT_SHA"
+      "australia-southeast1-docker.pkg.dev/virtualedonline-296428516898/my-repo/cloud-run-site:$COMMIT_SHA"
     ]
 
   # Step 3: Deploy to Cloud Run
@@ -23,11 +23,11 @@ steps:
         "run",
         "deploy",
         "cloud-run-site",
-        "--image=australia-southeast1-docker.pkg.dev/$PROJECT_ID/my-repo/cloud-run-site:$COMMIT_SHA",
+        "--image=australia-southeast1-docker.pkg.dev/virtualedonline-296428516898/my-repo/cloud-run-site:$COMMIT_SHA",
         "--region=australia-southeast1",
         "--platform=managed",
         "--allow-unauthenticated"
       ]
 
 images:
-  - "australia-southeast1-docker.pkg.dev/$PROJECT_ID/my-repo/cloud-run-site:$COMMIT_SHA"
+  - "australia-southeast1-docker.pkg.dev/virtualedonline-296428516898/my-repo/cloud-run-site:$COMMIT_SHA"
