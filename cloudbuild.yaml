@@ -1,0 +1,33 @@
+steps:
+  # Step 1: Build image
+  - name: "gcr.io/cloud-builders/docker"
+    args: [
+      "build",
+      "-t",
+      "australia-southeast1-docker.pkg.dev/$PROJECT_ID/my-repo/cloud-run-site:$COMMIT_SHA",
+      "."
+    ]
+
+  # Step 2: Push image
+  - name: "gcr.io/cloud-builders/docker"
+    args: [
+      "push",
+      "australia-southeast1-docker.pkg.dev/$PROJECT_ID/my-repo/cloud-run-site:$COMMIT_SHA"
+    ]
+
+  # Step 3: Deploy to Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "deploy",
+        "cloud-run-site",
+        "--image=australia-southeast1-docker.pkg.dev/$PROJECT_ID/my-repo/cloud-run-site:$COMMIT_SHA",
+        "--region=australia-southeast1",
+        "--platform=managed",
+        "--allow-unauthenticated"
+      ]
+
+images:
+  - "australia-southeast1-docker.pkg.dev/$PROJECT_ID/my-repo/cloud-run-site:$COMMIT_SHA"
