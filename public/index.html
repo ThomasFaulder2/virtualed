@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Cloud Run + GitHub</title>
+  </head>
+  <body>
+    <h1>Hello from Cloud Run</h1>
+    <pre id="output">Loading…</pre>
+    <script>
+      fetch("/api/hello")
+        .then(r => r.json())
+        .then(d => {
+          document.getElementById("output").textContent = JSON.stringify(d, null, 2);
+        })
+        .catch(e => {
+          document.getElementById("output").textContent = "Error: " + e;
+        });
+    </script>
+  </body>
+</html>
