@@ -36,53 +36,9 @@ async function callOpenAIWithRetry(client, messages, maxRetries = 3) {
     }
   }
   throw lastErr;
-}
-app.post("/api/chat", async (req, res) => {
-  try {
-    if (!process.env.OPENAI_API_KEY) {
-      console.error("OPENAI_API_KEY is not set");
-      return res.json({
-        reply:
-          "Sorry, I can’t answer right now because the server is missing its AI key."
-      });
-    }
-
-    const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
-
-    const userMessages = req.body.messages || [];
-    const messages = [
-      {
-        role: "system",
-        content:
-          "You are roleplaying as a patient for a medical student. " +
-          "Answer as the patient, giving history details only. " +
-          "Do NOT give diagnoses, investigations or management."
-      },
-      ...userMessages
-    ];
-
-    console.log("Calling OpenAI with", messages.length, "messages");
-
-    const completion = await client.chat.completions.create({
-      model: "gpt-5.1-mini",
-      messages
-    });
-
-    const reply =
-      completion.choices?.[0]?.message?.content || "No reply generated.";
-    console.log("OpenAI reply length:", reply.length);
-
-    return res.json({ reply });
-  } catch (err) {
-    console.error("OpenAI chat error:", err);
-    // IMPORTANT: don't surface a 500 to the browser, just send a fallback
-    return res.json({
-      reply:
-        "Sorry, I’m having trouble responding right now. Please try again in a moment."
-    });
-  }
+}app.post("/api/chat", (req, res) => {
+  console.log("Hit /api/chat test stub");
+  res.json({ reply: "Test reply from stub endpoint." });
 });
 
 // --- Serve static frontend from ./public ---
