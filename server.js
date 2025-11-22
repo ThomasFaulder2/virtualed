@@ -1,61 +1,44 @@
-// server.js (CommonJS version)
+// server.js
 
-const CSV_URL = "https://storage.googleapis.com/virtualed-466321_cloudbuild/Master_Excel.csv";
+// Load environment variables ASAP
+require("dotenv").config();
 
 const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
 const { OpenAI } = require("openai");
+const fetch = require("node-fetch"); // ensure fetch exists regardless of Node version
 
+// === CONFIG ===
+const CSV_URL = "https://storage.googleapis.com/virtualed-466321_cloudbuild/Master_Excel.csv";
+const PORT = process.env.PORT || 8080;
+
+// === EXPRESS APP ===
 const app = express();
 app.use(bodyParser.json());
 
-// IMPORTANT: use env var, DO NOT hard-code your key
+// --- OpenAI client (do NOT hard-code keys) ---
 const client = new OpenAI({
-  apiKey: "ssh-ed25519AAAAC3NzaC1lZDI1NTE5AAAAIEeTlq1ompR0zUmYalPertPUz1V9eBtRlQHvnScalsTi"
+  apiKey: process.env.OPENAI_API_KEY, // set this in Cloud Run env vars
 });
-try {
-  require("dotenv").config();
-  console.log("dotenv loaded");
-} catch (err) {
-  console.log("dotenv not found, skipping (using Cloud Run env vars only)");
-}
 
-
-// --- AI history chat endpoint ---
-async function callOpenAIWithRetry(client, messages, maxRetries = 3) {
-  let lastErr;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`OpenAI attempt ${attempt}`);
-      return await client.chat.completions.create({
-        model: "gpt-5.1-mini",
-        messages
-      });
-    } catch (err) {
-      lastErr = err;
-      const retryable = [429, 500, 502, 503, 504].includes(err.status);
-      console.error(`OpenAI error on attempt ${attempt}:`, err.status, err.message);
-      if (!retryable || attempt === maxRetries) break;
-      // simple backoff
-      await new Promise(r => setTimeout(r, attempt * 500));
-    }
-  }
-  throw lastErr;
-}app.post("/api/chat", (req, res) => {
+// Simple test / stub chat endpoint
+app.post("/api/chat", (req, res) => {
   console.log("Hit /api/chat test stub");
   res.json({ reply: "Test reply from stub endpoint." });
 });
 
-// --- Serve static frontend from ./public ---
-const publicDir = path.join(__dirname, "public");
-
-// --- Proxy CSV so browser doesn't hit GCS directly ---
+// --- CSV proxy route ---
 app.get("/api/master-csv", async (req, res) => {
+  console.log("GET /api/master-csv -> fetching from GCS:", CSV_URL);
   try {
-    const response = await fetch(CSV_URL); // Node 22+ has global fetch
+    const response = await fetch(CSV_URL);
+
+    console.log("GCS response status:", response.status);
+
     if (!response.ok) {
-      console.error("Failed to fetch CSV from GCS:", response.status, await response.text());
+      const bodyText = await response.text().catch(() => "<unable to read body>");
+      console.error("Failed to fetch CSV from GCS:", response.status, bodyText);
       return res.status(500).send("Failed to fetch CSV from storage");
     }
 
@@ -67,29 +50,28 @@ app.get("/api/master-csv", async (req, res) => {
   }
 });
 
+// --- Static frontend ---
+const publicDir = path.join(__dirname, "public");
 app.use(express.static(publicDir));
 
-// Health check / root
+// Root route
 app.get("/", (req, res) => {
   res.sendFile(path.join(publicDir, "index.html"));
 });
 
-// --- Start server ---
-const PORT = process.env.PORT;
+// --- Error handler (must be after routes) ---
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
   if (req.url.startsWith("/api/")) {
-    // API fallback
-    return res.json({
+    return res.status(500).json({
       error: "Something went wrong on the server.",
-      details: err.message
+      details: err.message,
     });
   }
-
-  // For non-API routes, just send a simple message
   res.status(500).send("Something went wrong.");
 });
 
+// --- Start server ---
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
