@@ -9,16 +9,341 @@
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
   <style>
-    /* ... all your existing CSS unchanged ... */
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #sidebar {
+      width: 260px;
+      background: #111827;
+      color: #f9fafb;
+      padding: 1rem;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+
+    #sidebar h1 {
+      font-size: 1.2rem;
+      margin: 0 0 1rem 0;
+    }
+
+    .id-button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      border: none;
+      margin-bottom: 0.25rem;
+      background: #1f2937;
+      color: inherit;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+
+    .id-button.active {
+      background: #2563eb;
+    }
+
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #top-panel {
+      padding: 0.75rem 1rem;
+      background: #111827;
+      color: #f9fafb;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-sizing: border-box;
+    }
+
+    #content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #case-list {
+      width: 260px;
+      border-right: 1px solid #e5e7eb;
+      background: #f9fafb;
+      padding: 0.75rem;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+
+    #case-list h2 {
+      font-size: 1rem;
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+    }
+
+    .case-button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      border: none;
+      margin-bottom: 0.25rem;
+      background: #e5e7eb;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .case-button.active {
+      background: #2563eb;
+      color: #f9fafb;
+    }
+
+    #case-viewer {
+      flex: 1;
+      padding: 1rem;
+      box-sizing: border-box;
+      overflow-y: auto;
+      background: #f3f4f6;
+    }
+
+    .card {
+      background: white;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+
+    .section-title {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .case-header {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+
+    .case-header img {
+      max-width: 180px;
+      border-radius: 0.75rem;
+      object-fit: cover;
+      border: 1px solid #e5e7eb;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: #e5e7eb;
+      margin-right: 0.25rem;
+    }
+
+    .flow-nav {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.75rem;
+      gap: 0.5rem;
+    }
+
+    .btn {
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #f9fafb;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    video {
+      width: 100%;
+      max-height: 360px;
+      border-radius: 0.75rem;
+      margin-top: 0.5rem;
+      background: #000;
+    }
+
+    /* MCQ + SA styles */
+    .mcq-options label {
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    .feedback {
+      margin-top: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .feedback.correct {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .feedback.incorrect {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .sa-answer {
+      width: 100%;
+      min-height: 60px;
+      padding: 0.4rem;
+      border-radius: 0.5rem;
+      border: 1px solid #d1d5db;
+      resize: vertical;
+      font-size: 0.85rem;
+      box-sizing: border-box;
+    }
+
+    .sa-correct {
+      margin-top: 0.3rem;
+      font-size: 0.85rem;
+      color: #374151;
+    }
+
+    /* Chat styles */
+    #chat-container {
+      display: flex;
+      flex-direction: column;
+      border-radius: 0.75rem;
+      border: 1px solid #e5e7eb;
+      margin-top: 0.5rem;
+      overflow: hidden;
+      background: #f9fafb;
+      max-height: 320px;
+    }
+
+    #chat-messages {
+      flex: 1;
+      padding: 0.5rem;
+      overflow-y: auto;
+      font-size: 0.85rem;
+    }
+
+    .chat-message {
+      margin-bottom: 0.35rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 0.6rem;
+      max-width: 80%;
+      white-space: pre-wrap;
+    }
+
+    .chat-message.user {
+      margin-left: auto;
+      background: #2563eb;
+      color: #f9fafb;
+    }
+
+    .chat-message.assistant {
+      margin-right: auto;
+      background: #e5e7eb;
+    }
+
+    #chat-input {
+      display: flex;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    #chat-textarea {
+      flex: 1;
+      border: none;
+      padding: 0.4rem;
+      font-size: 0.85rem;
+      resize: none;
+      outline: none;
+      background: white;
+    }
+
+    #chat-send {
+      border: none;
+      padding: 0.4rem 0.8rem;
+      background: #2563eb;
+      color: #f9fafb;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        flex-direction: column;
+      }
+      #sidebar {
+        width: 100%;
+        height: auto;
+      }
+      #content {
+        flex-direction: column;
+      }
+      #case-list {
+        width: 100%;
+        height: 160px;
+        border-right: none;
+        border-bottom: 1px solid #e5e7eb;
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- ... all your existing HTML unchanged ... -->
+  <div id="sidebar">
+    <h1>Virtual ED</h1>
+    <div id="id-list">Loading cases…</div>
+  </div>
+
+  <div id="main">
+    <div id="top-panel">
+      <div id="current-id-label">Select a series on the left</div>
+      <div style="font-size:0.8rem;opacity:0.8;">
+        Flow: History → Exam → Investigations → Management → Questions → Debrief
+      </div>
+    </div>
+
+    <div id="content">
+      <div id="case-list">
+        <h2>Cases</h2>
+        <div id="intro-video-container"></div>
+        <div id="case-buttons"></div>
+      </div>
+
+      <div id="case-viewer">
+        <div class="card">
+          <div class="section-title">Welcome</div>
+          <p>Select a series (ID) from the left, then choose a case to begin.</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
-    // Serve Master_Excel.csv as a static file from /public
-    // Make sure you copy the CSV into the public/ folder in your image.
-    const CSV_URL = "/Master_Excel.csv";
+    const CSV_URL = "Master_Excel.csv";
 
     const state = {
       seriesMap: {},    // id -> { id, introVideoUrl, cases: [...] }
@@ -88,9 +413,318 @@
       return seriesMap;
     }
 
-    // ... renderIdList, renderCaseList, renderCaseViewer, etc. all unchanged ...
+    function renderIdList() {
+      const idListEl = document.getElementById("id-list");
+      idListEl.innerHTML = "";
+
+      const ids = Object.keys(state.seriesMap).sort();
+      if (!ids.length) {
+        idListEl.textContent = "No cases found in CSV.";
+        return;
+      }
+
+      ids.forEach(id => {
+        const button = document.createElement("button");
+        button.className = "id-button" + (state.currentId === id ? " active" : "");
+        button.textContent = id;
+        button.onclick = () => {
+          state.currentId = id;
+          state.currentCaseIndex = null;
+          state.currentStep = 0;
+          state.chatMessages = [];
+          document.getElementById("current-id-label").textContent = `Series: ${id}`;
+          renderIdList();
+          renderCaseList();
+          renderCaseViewer();
+        };
+        idListEl.appendChild(button);
+      });
+    }
+
+    function renderCaseList() {
+      const container = document.getElementById("case-buttons");
+      const introContainer = document.getElementById("intro-video-container");
+      container.innerHTML = "";
+      introContainer.innerHTML = "";
+
+      if (!state.currentId) {
+        return;
+      }
+
+      const series = state.seriesMap[state.currentId];
+      if (!series) return;
+
+      // Intro video for this series
+      const introCard = document.createElement("div");
+      introCard.className = "card";
+      introCard.innerHTML = `
+        <div class="section-title">Series Intro</div>
+        <p>Watch this introduction before starting the cases.</p>
+        <video controls src="${series.introVideoUrl}"></video>
+      `;
+      introContainer.appendChild(introCard);
+
+      // Case buttons
+      const title = document.createElement("div");
+      title.className = "section-title";
+      title.textContent = "Cases in this series";
+      container.appendChild(title);
+
+      series.cases.forEach((c, index) => {
+        const button = document.createElement("button");
+        const isActive = state.currentCaseIndex === index;
+        button.className = "case-button" + (isActive ? " active" : "");
+        button.textContent = c.diseaseName || `Case ${index + 1}`;
+        button.onclick = () => {
+          state.currentCaseIndex = index;
+          state.currentStep = 0;
+          state.chatMessages = [];
+          renderCaseList();
+          renderCaseViewer();
+        };
+        container.appendChild(button);
+      });
+    }
+
+    function renderCaseViewer() {
+      const viewer = document.getElementById("case-viewer");
+      viewer.innerHTML = "";
+
+      if (!state.currentId || state.currentCaseIndex == null) {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="section-title">Select a case</div>
+          <p>Choose a case from the list to begin.</p>
+        `;
+        viewer.appendChild(card);
+        return;
+      }
+
+      const series = state.seriesMap[state.currentId];
+      const caseObj = series.cases[state.currentCaseIndex];
+
+      const stepTitles = [
+        "History",
+        "Examination",
+        "Investigations",
+        "Management",
+        "MCQ & Short Answer Questions",
+        "Debrief"
+      ];
+
+      const card = document.createElement("div");
+      card.className = "card";
+
+      // Header
+      const headerHtml = `
+        <div class="case-header">
+          <div style="flex:1;">
+            <div class="badge">Series: ${caseObj.id}</div>
+            <div class="badge">Case ${state.currentCaseIndex + 1}</div>
+            <h2 style="margin:0.3rem 0;">${caseObj.diseaseName}</h2>
+            <div style="font-size:0.9rem;color:#4b5563;">Patient: ${caseObj.patientName || "Unnamed"}</div>
+          </div>
+          <img src="${caseObj.imageUrl}" alt="Case image" onerror="this.style.display='none';" />
+        </div>
+
+        <div style="font-size:0.85rem;color:#6b7280;margin-bottom:0.5rem;">
+          Step ${state.currentStep + 1} of 6 • ${stepTitles[state.currentStep]}
+        </div>
+      `;
+
+      card.innerHTML = headerHtml;
+
+      // Step content
+      const stepContainer = document.createElement("div");
+
+      switch (state.currentStep) {
+        case 0:
+          stepContainer.appendChild(renderHistoryStep(caseObj));
+          break;
+        case 1:
+          stepContainer.appendChild(renderTextStep("Examination findings", caseObj.examText));
+          break;
+        case 2:
+          stepContainer.appendChild(renderTextStep("Investigation findings", caseObj.invText));
+          break;
+        case 3:
+          stepContainer.appendChild(renderTextStep("Management", caseObj.managementText));
+          break;
+        case 4:
+          stepContainer.appendChild(renderQuestionsStep(caseObj));
+          break;
+        case 5:
+          stepContainer.appendChild(renderDebriefStep(caseObj));
+          break;
+      }
+
+      card.appendChild(stepContainer);
+
+      // Nav buttons
+      const nav = document.createElement("div");
+      nav.className = "flow-nav";
+
+      const backBtn = document.createElement("button");
+      backBtn.className = "btn btn-secondary";
+      backBtn.textContent = "Back";
+      backBtn.disabled = state.currentStep === 0;
+      backBtn.onclick = () => {
+        if (state.currentStep > 0) {
+          state.currentStep -= 1;
+          renderCaseViewer();
+        }
+      };
+
+      const nextBtn = document.createElement("button");
+      nextBtn.className = "btn btn-primary";
+      nextBtn.textContent = state.currentStep === 5 ? "Finish case" : "Next";
+      nextBtn.onclick = () => {
+        if (state.currentStep < 5) {
+          state.currentStep += 1;
+          renderCaseViewer();
+        } else {
+          // Finished case → back to case list
+          state.currentStep = 0;
+          renderCaseViewer();
+        }
+      };
+
+      nav.appendChild(backBtn);
+      nav.appendChild(nextBtn);
+
+      card.appendChild(nav);
+      viewer.appendChild(card);
+    }
+
+    function renderHistoryStep(caseObj) {
+      const container = document.createElement("div");
+
+      const historyHtml = `
+        <div class="section-title">History</div>
+        <p style="white-space:pre-wrap;font-size:0.9rem;">${caseObj.historyText || "No history text provided."}</p>
+        <div style="margin-top:0.5rem;">
+          <div style="font-weight:600;margin-bottom:0.25rem;">History video</div>
+          <video controls src="${caseObj.historyVideoUrl}"></video>
+        </div>
+        <div style="margin-top:0.75rem;font-size:0.9rem;">
+          <strong>Optional:</strong> Take an AI history from a chatbot roleplaying as the patient.
+        </div>
+      `;
+      container.innerHTML = historyHtml;
+
+      // Chat UI
+      const chat = document.createElement("div");
+      chat.id = "chat-container";
+
+      chat.innerHTML = `
+        <div id="chat-messages"></div>
+        <div id="chat-input">
+          <textarea id="chat-textarea" rows="2" placeholder="Ask the patient a question..." ></textarea>
+          <button id="chat-send">Send</button>
+        </div>
+      `;
+
+      container.appendChild(chat);
+
+      setupChat();
+
+      return container;
+    }
+
+    function renderTextStep(title, text) {
+      const container = document.createElement("div");
+      container.innerHTML = `
+        <div class="section-title">${title}</div>
+        <p style="white-space:pre-wrap;font-size:0.9rem;">${text || "No content provided."}</p>
+      `;
+      return container;
+    }
+
+    function renderQuestionsStep(caseObj) {
+      const container = document.createElement("div");
+
+      const mcqHtml = `
+        <div class="section-title">MCQ</div>
+        <p style="white-space:pre-wrap;font-size:0.9rem;">${caseObj.mcqQuestion || "No MCQ question provided."}</p>
+        <div class="mcq-options">
+          <label><input type="radio" name="mcq" value="A"> A. ${caseObj.mcqOptions.A}</label>
+          <label><input type="radio" name="mcq" value="B"> B. ${caseObj.mcqOptions.B}</label>
+          <label><input type="radio" name="mcq" value="C"> C. ${caseObj.mcqOptions.C}</label>
+          <label><input type="radio" name="mcq" value="D"> D. ${caseObj.mcqOptions.D}</label>
+        </div>
+      `;
+
+      const saHtml = `
+        <div class="section-title" style="margin-top:1rem;">Short answer questions</div>
+
+        <div style="margin-bottom:0.75rem;">
+          <div style="font-weight:500;">1) ${caseObj.sa1Question || "No SAQ 1 provided."}</div>
+          <textarea class="sa-answer" id="sa1-answer" placeholder="Your answer..."></textarea>
+          <div class="sa-correct" id="sa1-correct" style="display:none;"></div>
+        </div>
+
+        <div style="margin-bottom:0.75rem;">
+          <div style="font-weight:500;">2) ${caseObj.sa2Question || "No SAQ 2 provided."}</div>
+          <textarea class="sa-answer" id="sa2-answer" placeholder="Your answer..."></textarea>
+          <div class="sa-correct" id="sa2-correct" style="display:none;"></div>
+        </div>
+
+        <button class="btn btn-secondary" id="check-answers-btn">Check answers</button>
+        <div id="mcq-feedback"></div>
+      `;
+
+      container.innerHTML = mcqHtml + saHtml;
+
+      const checkBtn = container.querySelector("#check-answers-btn");
+      const mcqFeedbackEl = container.querySelector("#mcq-feedback");
+
+      checkBtn.onclick = () => {
+        const selected = container.querySelector("input[name='mcq']:checked");
+        const selectedValue = selected ? selected.value : null;
+
+        mcqFeedbackEl.innerHTML = "";
+        if (!selectedValue) {
+          const fb = document.createElement("div");
+          fb.className = "feedback incorrect";
+          fb.textContent = "Please select an option.";
+          mcqFeedbackEl.appendChild(fb);
+        } else {
+          const fb = document.createElement("div");
+          if (selectedValue === "D") {
+            fb.className = "feedback correct";
+            fb.textContent = "Correct! The MCQ answer is D.";
+          } else {
+            fb.className = "feedback incorrect";
+            fb.textContent = "Not quite. The correct answer is D.";
+          }
+          mcqFeedbackEl.appendChild(fb);
+        }
+
+        // Show SA correct answers
+        const sa1Correct = container.querySelector("#sa1-correct");
+        const sa2Correct = container.querySelector("#sa2-correct");
+        sa1Correct.style.display = "block";
+        sa2Correct.style.display = "block";
+        sa1Correct.textContent = "Suggested answer: " + (caseObj.sa1Answer || "No model answer provided.");
+        sa2Correct.textContent = "Suggested answer: " + (caseObj.sa2Answer || "No model answer provided.");
+      };
+
+      return container;
+    }
+
+    function renderDebriefStep(caseObj) {
+      const container = document.createElement("div");
+      container.innerHTML = `
+        <div class="section-title">Debrief</div>
+        <p style="font-size:0.9rem;">Watch the debrief video discussing key learning points for this case.</p>
+        <video controls src="${caseObj.debriefVideoUrl}"></video>
+      `;
+      return container;
+    }
 
     // --- Chat / AI history ---
+
     function setupChat() {
       const messagesEl = document.getElementById("chat-messages");
       const textarea = document.getElementById("chat-textarea");
@@ -117,44 +751,36 @@
         state.chatMessages.push({ role: "user", content: text });
         renderMessages();
 
+        // Call backend /api/chat (you will implement this in server.js)
         sendBtn.disabled = true;
-        const originalLabel = sendBtn.textContent;
         sendBtn.textContent = "…";
-
-        // Simple fetch timeout so UI doesn't hang forever
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s
 
         try {
           const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: state.chatMessages }),
-            signal: controller.signal
+            body: JSON.stringify({ messages: state.chatMessages })
           });
 
           if (!response.ok) {
-            throw new Error("Chat request failed with status " + response.status);
+            throw new Error("Chat request failed");
           }
-
           const data = await response.json();
           const reply = data.reply || "Sorry, I couldn't generate a response.";
           state.chatMessages.push({ role: "assistant", content: reply });
         } catch (err) {
           state.chatMessages.push({
             role: "assistant",
-            content:
-              "There was a problem contacting the AI history service. Please try again later."
+            content: "There was a problem contacting the AI history service. Please try again later."
           });
-          console.error("Chat error:", err);
         } finally {
-          clearTimeout(timeoutId);
           sendBtn.disabled = false;
-          sendBtn.textContent = originalLabel;
+          sendBtn.textContent = "Send";
           renderMessages();
         }
       };
 
+      // Show a starting system message
       if (!state.chatMessages.length) {
         state.chatMessages.push({
           role: "assistant",
@@ -165,35 +791,37 @@
       renderMessages();
     }
 
-    // --- Initial CSV load ---
+    // --- Initial load ---
+
     async function loadCsv() {
-      try {
-        console.log("Fetching CSV from:", CSV_URL);
-        const res = await fetch(CSV_URL);
-        console.log("CSV HTTP status:", res.status);
+  try {
+    console.log("Fetching CSV from:", CSV_URL);
+    const res = await fetch(CSV_URL);
+    console.log("CSV HTTP status:", res.status);
 
-        if (!res.ok) {
-          throw new Error("HTTP " + res.status);
-        }
-
-        const text = await res.text();
-        console.log("First 200 chars of CSV:", text.slice(0, 200));
-
-        const parsed = Papa.parse(text, {
-          header: true,
-          skipEmptyLines: true
-        });
-
-        console.log("Parsed headers:", Object.keys(parsed.data[0] || {}));
-        state.seriesMap = buildSeries(parsed.data);
-        console.log("Series IDs found:", Object.keys(state.seriesMap));
-        renderIdList();
-      } catch (err) {
-        console.error("CSV load error:", err);
-        document.getElementById("id-list").textContent =
-          "Error loading CSV: " + err.message;
-      }
+    if (!res.ok) {
+      throw new Error("HTTP " + res.status);
     }
+
+    const text = await res.text();
+    console.log("First 200 chars of CSV:", text.slice(0, 200));
+
+    const parsed = Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true
+    });
+
+    console.log("Parsed headers:", Object.keys(parsed.data[0] || {}));
+    state.seriesMap = buildSeries(parsed.data);
+    console.log("Series IDs found:", Object.keys(state.seriesMap));
+    renderIdList();
+  } catch (err) {
+    console.error("CSV load error:", err);
+    document.getElementById("id-list").textContent =
+      "Error loading CSV: " + err.message;
+  }
+}
+
 
     document.addEventListener("DOMContentLoaded", loadCsv);
   </script>
