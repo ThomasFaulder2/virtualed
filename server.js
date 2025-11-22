@@ -17,33 +17,65 @@ const client = new OpenAI({
 require("dotenv").config();
 
 // --- AI history chat endpoint ---
+async function callOpenAIWithRetry(client, messages, maxRetries = 3) {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`OpenAI attempt ${attempt}`);
+      return await client.chat.completions.create({
+        model: "gpt-5.1-mini",
+        messages
+      });
+    } catch (err) {
+      lastErr = err;
+      const retryable = [429, 500, 502, 503, 504].includes(err.status);
+      console.error(`OpenAI error on attempt ${attempt}:`, err.status, err.message);
+      if (!retryable || attempt === maxRetries) break;
+      // simple backoff
+      await new Promise(r => setTimeout(r, attempt * 500));
+    }
+  }
+  throw lastErr;
+}
+
 app.post("/api/chat", async (req, res) => {
   try {
-    const userMessages = req.body.messages || [];
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY is not set");
+      return res.json({
+        reply:
+          "Sorry, I can’t answer right now because the server is missing its AI key."
+      });
+    }
 
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const userMessages = req.body.messages || [];
     const messages = [
       {
         role: "system",
         content:
           "You are roleplaying as a patient for a medical student. " +
-          "Answer strictly as the patient, focusing on symptoms, history, and concerns. " +
-          "Do NOT give diagnoses, investigations, or management advice."
+          "Answer as the patient, giving history details only. " +
+          "Do NOT give diagnoses, investigations or management."
       },
       ...userMessages
     ];
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-5.1-mini",
-      messages
-    });
-
-    const reply = completion.choices[0]?.message?.content || "";
+    const completion = await callOpenAIWithRetry(client, messages);
+    const reply =
+      completion.choices?.[0]?.message?.content || "No reply generated.";
     res.json({ reply });
   } catch (err) {
-    console.error("OpenAI chat error:", err);
-    res.status(500).json({ error: "OpenAI chat error" });
+    console.error("OpenAI chat error (after retries):", err);
+    // Don't surface 500 to the browser; just send a soft error message
+    res.json({
+      reply:
+        "Sorry, I’m having trouble responding right now. Please try again in a moment."
+    });
   }
 });
+
 
 // --- Serve static frontend from ./public ---
 const publicDir = path.join(__dirname, "public");
