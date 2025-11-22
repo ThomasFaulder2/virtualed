@@ -1,13 +1,19 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
-WORKDIR /app
+WORKDIR /usr/src/app
 
+# copy package.json / package-lock.json
 COPY package*.json ./
-RUN npm install --only=production
 
+# install deps
+RUN npm ci --omit=dev || npm install --omit=dev
+
+# copy rest of app
 COPY . .
 
+ENV NODE_ENV=production
 ENV PORT=8080
+
 EXPOSE 8080
 
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
