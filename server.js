@@ -63,6 +63,8 @@ app.get("/api/master-csv", async (req, res) => {
 // --- OpenAI / AI history chat endpoint ---
 // lazy init so missing OPENAI_API_KEY doesn't crash the whole service
 app.post("/api/chat", async (req, res) => {
+  console.log("POST /api/chat body:", JSON.stringify(req.body).slice(0, 1000));
+
   try {
     if (!process.env.OPENAI_API_KEY) {
       console.error("OPENAI_API_KEY is not set");
@@ -87,18 +89,38 @@ app.post("/api/chat", async (req, res) => {
       ...userMessages
     ];
 
+    console.log("Calling OpenAI with", messages.length, "messages");
+
     const completion = await client.chat.completions.create({
       model: "gpt-5.1-mini",
       messages
     });
 
-    const reply = completion.choices[0]?.message?.content || "No reply generated.";
+    const reply =
+      completion.choices?.[0]?.message?.content || "No reply generated.";
+    console.log("OpenAI reply length:", reply.length);
+
     res.json({ reply });
   } catch (err) {
+    // Log as much as possible
     console.error("OpenAI chat error:", err);
-    res.status(500).json({ error: "OpenAI chat error" });
+
+    // If it's an OpenAI HTTP error, surface status & message
+    const status = err.status || 500;
+    const errorPayload = {
+      error: "OpenAI chat error",
+      status,
+      message: err.message,
+      details: err.error || undefined
+    };
+
+    // For debugging: log what we send to client
+    console.error("Responding with error payload:", errorPayload);
+
+    res.status(500).json(errorPayload);
   }
 });
+
 
 // --- Static frontend (index.html and JS/CSS) ---
 app.use(express.static(publicDir));
