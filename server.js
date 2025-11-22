@@ -1,105 +1,128 @@
 require("dotenv").config();
 
 const path = require("path");
+const fs = require("fs");
 const express = require("express");
-const { OpenAI } = require("openai"); // No need for body-parser separate install in modern Express
+const Papa = require("papaparse");
+const { OpenAI } = require("openai");
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// 1. Cloud Run & Express Config
+// --- 1. CONFIG ---
 app.set("trust proxy", 1);
-app.use(express.json()); // Built-in replacement for body-parser
+app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
 
-// 2. OpenAI Client
 const apiKey = process.env.OPENAI_API_KEY;
 const client = new OpenAI({ apiKey });
 
-// 3. Robust Retry Logic
+// --- 2. CRITICAL: SYNCHRONOUS DATA LOADING ---
+// We define this variable at the top level
+let CACHED_DATA = null;
+
+function initializeServerData() {
+  try {
+    // 1. Construct Path
+    const csvPath = path.join(__dirname, "public", "Master_Excel.csv");
+    console.log(`[Startup] Loading CSV from: ${csvPath}`);
+
+    // 2. Check existence strictly
+    if (!fs.existsSync(csvPath)) {
+      throw new Error(`File not found at: ${csvPath}`);
+    }
+
+    // 3. Read File (Synchronous - blocks startup until done)
+    const fileContent = fs.readFileSync(csvPath, "utf8");
+
+    // 4. Parse (Synchronous)
+    const parsed = Papa.parse(fileContent, {
+      header: true,
+      skipEmptyLines: true,
+    });
+
+    if (parsed.errors.length > 0) {
+      console.warn("[Startup] CSV Parser warnings:", parsed.errors);
+    }
+
+    // 5. Set the global variable
+    CACHED_DATA = parsed.data;
+    console.log(`[Startup] Success! Loaded ${CACHED_DATA.length} cases.`);
+
+  } catch (err) {
+    console.error("[Startup] CRITICAL ERROR: Could not load CSV.");
+    console.error(err);
+    // If we can't load data, we MUST crash the container so Cloud Run knows it failed.
+    // Do not start the server.
+    process.exit(1); 
+  }
+}
+
+// LOAD DATA BEFORE STARTING SERVER
+initializeServerData();
+
+
+// --- 3. ENDPOINTS ---
+
+// Cloud Run Health Check
+// We check if data exists. If not, we tell Cloud Run "I am not ready".
+app.get("/healthz", (req, res) => {
+  if (!CACHED_DATA || CACHED_DATA.length === 0) {
+    return res.status(503).send("Data not loaded");
+  }
+  res.status(200).send("ok");
+});
+
+app.get("/api/cases", (req, res) => {
+  // Double safety check
+  if (!CACHED_DATA) {
+     return res.status(503).json({ error: "Server starting up, please retry." });
+  }
+  res.json(CACHED_DATA);
+});
+
+// Chat Endpoint
 async function callOpenAIWithRetry(messages, maxRetries = 3) {
   let lastErr;
-
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Add a timeout for the specific API call (e.g., 15 seconds)
       const completion = await client.chat.completions.create({
-        model: "gpt-4o-mini", // FIXED: Valid model name (was gpt-5.1-mini)
+        model: "gpt-4o-mini",
         messages,
-        max_tokens: 500, // Safety limit for output
-      }, { timeout: 15000 }); // Client-side timeout
-
+        max_tokens: 500,
+      }, { timeout: 15000 });
       return completion.choices[0]?.message?.content || "";
-
     } catch (err) {
       lastErr = err;
       const status = err.status || 500;
-
-      console.error(`Attempt ${attempt} failed. Status: ${status}. Msg: ${err.message}`);
-
-      // CRITICAL: Do not retry on client errors (400, 401, 404)
-      // Only retry on Rate Limits (429) or Server Errors (5xx)
-      if (status < 500 && status !== 429) {
-        throw err; // Fail fast for invalid keys or models
-      }
-
-      if (attempt < maxRetries) {
-        // Exponential backoff: 500ms, 1000ms, 2000ms
-        const delay = 500 * Math.pow(2, attempt - 1);
-        await new Promise(r => setTimeout(r, delay));
-      }
+      console.error(`OpenAI Attempt ${attempt} failed: ${err.message}`);
+      if (status < 500 && status !== 429) throw err;
+      if (attempt < maxRetries) await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
     }
   }
   throw lastErr;
 }
 
-// 4. Health Endpoint
-app.get("/healthz", (req, res) => {
-  res.status(200).send("ok");
-});
-
-// 5. Chat Endpoint
 app.post("/api/chat", async (req, res) => {
   try {
-    if (!apiKey) {
-      console.error("Server missing API Key");
-      return res.status(500).json({ error: "Server configuration error" });
-    }
+    if (!apiKey) return res.status(500).json({ error: "Missing API Key" });
+    
+    const userMessages = Array.isArray(req.body?.messages) ? req.body.messages : [];
+    const systemMsg = userMessages.find(m => m.role === 'system');
+    const conversation = userMessages.filter(m => m.role !== 'system');
 
-    const userMessages = Array.isArray(req.body?.messages)
-      ? req.body.messages
-      : [];
-
-    // FIXED: Context Window Management
-    // We keep the System Prompt (always index 0) AND the last 10 messages.
-    // Previous code sliced strictly at -20, which deleted the System Prompt on long chats.
-    const systemMessage = {
-      role: "system",
-      content:
-        "You are roleplaying as a patient for a medical student. " +
-        "Answer strictly as the patient, focusing on symptoms, history, and concerns. " +
-        "Do NOT give diagnoses, investigations, or management advice."
-    };
-
-    // Take only the last 10 user messages to save tokens, but prepend System message
-    const recentHistory = userMessages.slice(-10); 
-    const messages = [systemMessage, ...recentHistory];
+    const finalSystem = systemMsg || { role: "system", content: "You are a helpful assistant." };
+    const messages = [finalSystem, ...conversation.slice(-10)];
 
     const reply = await callOpenAIWithRetry(messages);
     res.json({ reply });
-
   } catch (err) {
-    console.error("Final OpenAI Handler Error:", err);
-
-    // Return specific error codes to frontend
-    const status = err.status || 500;
-    const message = err.error?.message || "Internal Service Error";
-    
-    res.status(status).json({ error: message });
+    console.error("Chat error:", err);
+    res.status(err.status || 500).json({ error: "OpenAI error" });
   }
 });
 
-// 6. Static Files
+// Static Files
 const publicDir = path.join(__dirname, "public");
 app.use(express.static(publicDir));
 
@@ -107,11 +130,9 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(publicDir, "index.html"));
 });
 
-// 7. Process Safety
-process.on("unhandledRejection", (reason, p) => {
-  console.error("Unhandled Rejection:", reason);
-});
-
+// --- 4. START LISTENER ---
+// We only listen AFTER the sync data load above has finished without error.
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
+  console.log(`Data Status: ${CACHED_DATA ? "READY" : "NOT READY"}`);
 });
