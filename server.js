@@ -37,7 +37,6 @@ async function callOpenAIWithRetry(client, messages, maxRetries = 3) {
   }
   throw lastErr;
 }
-
 app.post("/api/chat", async (req, res) => {
   try {
     if (!process.env.OPENAI_API_KEY) {
@@ -48,7 +47,9 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
 
     const userMessages = req.body.messages || [];
     const messages = [
@@ -62,20 +63,27 @@ app.post("/api/chat", async (req, res) => {
       ...userMessages
     ];
 
-    const completion = await callOpenAIWithRetry(client, messages);
+    console.log("Calling OpenAI with", messages.length, "messages");
+
+    const completion = await client.chat.completions.create({
+      model: "gpt-5.1-mini",
+      messages
+    });
+
     const reply =
       completion.choices?.[0]?.message?.content || "No reply generated.";
-    res.json({ reply });
+    console.log("OpenAI reply length:", reply.length);
+
+    return res.json({ reply });
   } catch (err) {
-    console.error("OpenAI chat error (after retries):", err);
-    // Don't surface 500 to the browser; just send a soft error message
-    res.json({
+    console.error("OpenAI chat error:", err);
+    // IMPORTANT: don't surface a 500 to the browser, just send a fallback
+    return res.json({
       reply:
         "Sorry, I’m having trouble responding right now. Please try again in a moment."
     });
   }
 });
-
 
 // --- Serve static frontend from ./public ---
 const publicDir = path.join(__dirname, "public");
@@ -106,6 +114,20 @@ app.get("/", (req, res) => {
 
 // --- Start server ---
 const PORT = process.env.PORT;
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  if (req.url.startsWith("/api/")) {
+    // API fallback
+    return res.json({
+      error: "Something went wrong on the server.",
+      details: err.message
+    });
+  }
+
+  // For non-API routes, just send a simple message
+  res.status(500).send("Something went wrong.");
+});
+
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
