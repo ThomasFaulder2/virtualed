@@ -1,80 +1,105 @@
-// server.js
-
-require("dotenv").config();          // at very top
+require("dotenv").config();
 
 const path = require("path");
 const express = require("express");
-const bodyParser = require("body-parser");
-const { OpenAI } = require("openai");
+const { OpenAI } = require("openai"); // No need for body-parser separate install in modern Express
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Very important: Cloud Run sets PORT – don’t hard-code anything else
+// 1. Cloud Run & Express Config
 app.set("trust proxy", 1);
-app.use(bodyParser.json());
+app.use(express.json()); // Built-in replacement for body-parser
+app.use(express.urlencoded({ extended: true }));
 
-// OpenAI client – safe even if key missing
+// 2. OpenAI Client
 const apiKey = process.env.OPENAI_API_KEY;
 const client = new OpenAI({ apiKey });
 
-// Health endpoint for Cloud Run
-app.get("/healthz", (req, res) => {
-  res.status(200).send("ok");
-});
-
-// Chat endpoint (unchanged logic, just retry wrapper)
-async function callOpenAIWithRetry(messages, maxRetries = 2) {
+// 3. Robust Retry Logic
+async function callOpenAIWithRetry(messages, maxRetries = 3) {
   let lastErr;
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      // Add a timeout for the specific API call (e.g., 15 seconds)
       const completion = await client.chat.completions.create({
-        model: "gpt-5.1-mini",
-        messages
-      });
+        model: "gpt-4o-mini", // FIXED: Valid model name (was gpt-5.1-mini)
+        messages,
+        max_tokens: 500, // Safety limit for output
+      }, { timeout: 15000 }); // Client-side timeout
+
       return completion.choices[0]?.message?.content || "";
+
     } catch (err) {
       lastErr = err;
-      console.error(`OpenAI attempt ${attempt} failed:`, err.message || err);
+      const status = err.status || 500;
+
+      console.error(`Attempt ${attempt} failed. Status: ${status}. Msg: ${err.message}`);
+
+      // CRITICAL: Do not retry on client errors (400, 401, 404)
+      // Only retry on Rate Limits (429) or Server Errors (5xx)
+      if (status < 500 && status !== 429) {
+        throw err; // Fail fast for invalid keys or models
+      }
+
       if (attempt < maxRetries) {
-        await new Promise(r => setTimeout(r, 500 * attempt));
+        // Exponential backoff: 500ms, 1000ms, 2000ms
+        const delay = 500 * Math.pow(2, attempt - 1);
+        await new Promise(r => setTimeout(r, delay));
       }
     }
   }
   throw lastErr;
 }
 
+// 4. Health Endpoint
+app.get("/healthz", (req, res) => {
+  res.status(200).send("ok");
+});
+
+// 5. Chat Endpoint
 app.post("/api/chat", async (req, res) => {
   try {
     if (!apiKey) {
-      return res.status(500).json({ error: "Missing OPENAI_API_KEY" });
+      console.error("Server missing API Key");
+      return res.status(500).json({ error: "Server configuration error" });
     }
 
     const userMessages = Array.isArray(req.body?.messages)
       ? req.body.messages
       : [];
 
-    const messages = [
-      {
-        role: "system",
-        content:
-          "You are roleplaying as a patient for a medical student. " +
-          "Answer strictly as the patient, focusing on symptoms, history, and concerns. " +
-          "Do NOT give diagnoses, investigations, or management advice."
-      },
-      ...userMessages
-    ];
+    // FIXED: Context Window Management
+    // We keep the System Prompt (always index 0) AND the last 10 messages.
+    // Previous code sliced strictly at -20, which deleted the System Prompt on long chats.
+    const systemMessage = {
+      role: "system",
+      content:
+        "You are roleplaying as a patient for a medical student. " +
+        "Answer strictly as the patient, focusing on symptoms, history, and concerns. " +
+        "Do NOT give diagnoses, investigations, or management advice."
+    };
 
-    const trimmed = messages.slice(-20);
-    const reply = await callOpenAIWithRetry(trimmed);
+    // Take only the last 10 user messages to save tokens, but prepend System message
+    const recentHistory = userMessages.slice(-10); 
+    const messages = [systemMessage, ...recentHistory];
+
+    const reply = await callOpenAIWithRetry(messages);
     res.json({ reply });
+
   } catch (err) {
-    console.error("OpenAI chat error:", err);
-    res.status(502).json({ error: "OpenAI chat error" });
+    console.error("Final OpenAI Handler Error:", err);
+
+    // Return specific error codes to frontend
+    const status = err.status || 500;
+    const message = err.error?.message || "Internal Service Error";
+    
+    res.status(status).json({ error: message });
   }
 });
 
-// Static frontend *including* Master_Excel.csv in /public
+// 6. Static Files
 const publicDir = path.join(__dirname, "public");
 app.use(express.static(publicDir));
 
@@ -82,12 +107,9 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(publicDir, "index.html"));
 });
 
-// Safety nets so the container doesn’t die silently
+// 7. Process Safety
 process.on("unhandledRejection", (reason, p) => {
-  console.error("Unhandled Rejection at:", p, "reason:", reason);
-});
-process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception:", err);
+  console.error("Unhandled Rejection:", reason);
 });
 
 app.listen(PORT, () => {
