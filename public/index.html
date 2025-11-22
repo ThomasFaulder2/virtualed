@@ -375,7 +375,34 @@
 
   <script>
     /* --- Config & State --- */
-    const CSV_URL = "Master_Excel.csv";
+    const CSV_URL = "https://storage.googleapis.com/virtualed-466321_cloudbuild/Master_Excel.csv";
+    /* --- 6. Boot --- */
+    async function init() {
+            try {
+                fetch("/master-csv")
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to fetch master CSV: " + res.status);
+        return res.text();
+      })
+      .then(csvText => {
+        console.log("Got CSV:", csvText);
+
+        const parsed = Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true
+        });
+
+        state.seriesMap = buildSeries(parsed.data);
+        renderIdList();
+      })
+      .catch(err => {
+        console.error("Error loading CSV:", err);
+      });
+
+        } catch(e) {
+            document.getElementById("id-list").innerHTML = `<div style="padding:1rem; color:red;">Error: ${e.message}</div>`;
+        }
+    }
     
     const state = {
       seriesMap: {},
@@ -770,20 +797,7 @@
       };
     }
 
-    /* --- 6. Boot --- */
-    async function init() {
-        try {
-            const res = await fetch(CSV_URL);
-            if(!res.ok) throw new Error("Failed to load CSV");
-            const text = await res.text();
-            
-            const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-            state.seriesMap = buildSeries(parsed.data);
-            renderIdList();
-        } catch(e) {
-            document.getElementById("id-list").innerHTML = `<div style="padding:1rem; color:red;">Error: ${e.message}</div>`;
-        }
-    }
+    
 
     window.addEventListener("DOMContentLoaded", init);
   </script>
