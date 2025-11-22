@@ -4,12 +4,14 @@ require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const bodyParser = require("body-parser");
+const { OpenAI } = require("openai");
+const fetch = require("node-fetch");
 const fs = require("fs").promises;
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// --- Static frontend dir ---
+// --- static frontend dir ---
 const publicDir = path.join(__dirname, "public");
 
 // === CSV from Google Cloud Storage ===
@@ -17,68 +19,56 @@ const CSV_URL = "https://storage.googleapis.com/virtualed-466321_cloudbuild/Mast
 
 app.use(bodyParser.json());
 
-// Optional: log requests (helpful on Cloud Run)
+// (optional) log all requests to help debug on Cloud Run
 app.use((req, res, next) => {
   console.log(req.method, req.url);
   next();
 });
 
-// --- Proxy route for Master_Excel.csv with safe fallback ---
+// --- Proxy route for your Master_Excel.csv with local fallback ---
 app.get("/api/master-csv", async (req, res) => {
   try {
-    let csvText = null;
+    console.log("Fetching CSV from:", CSV_URL);
+    let csv = null;
 
-    // Try GCS first if fetch is available
-    if (typeof fetch === "function") {
-      try {
-        console.log("Trying to fetch CSV from GCS:", CSV_URL);
-        const response = await fetch(CSV_URL);
-
-        if (response.ok) {
-          csvText = await response.text();
-          console.log("Fetched CSV from GCS, length:", csvText.length);
-        } else {
-          console.error("GCS fetch failed, status:", response.status);
-        }
-      } catch (err) {
-        console.error("Error contacting GCS:", err);
+    // Try GCS first
+    try {
+      const response = await fetch(CSV_URL);
+      if (response.ok) {
+        csv = await response.text();
+        console.log("CSV fetched OK from GCS, length:", csv.length);
+      } else {
+        console.error("GCS fetch failed with status:", response.status);
       }
-    } else {
-      console.warn("Global fetch is not available, skipping GCS fetch.");
+    } catch (err) {
+      console.error("Error fetching CSV from GCS:", err);
     }
 
-    // Fallback to local CSV baked into the image
-    if (!csvText) {
+    // Fallback: read CSV baked into the container
+    if (!csv) {
       const localPath = path.join(publicDir, "Master_Excel.csv");
       console.log("Falling back to local CSV:", localPath);
-      csvText = await fs.readFile(localPath, "utf8");
-      console.log("Local CSV length:", csvText.length);
+      csv = await fs.readFile(localPath, "utf8");
+      console.log("Local CSV length:", csv.length);
     }
 
-    res.type("text/csv").send(csvText);
+    res.type("text/csv").send(csv);
   } catch (err) {
-    // Final fallback: avoid crashing the service – at worst return empty CSV
     console.error("Error in /api/master-csv:", err);
+    // worst case, send an empty CSV instead of killing the service
     res.type("text/csv").send("");
   }
 });
 
 // --- OpenAI / AI history chat endpoint ---
-// Lazy require inside the handler so a missing openai package / env var
-// does NOT crash the whole container startup.
+// lazy init so missing OPENAI_API_KEY doesn't crash the whole service
 app.post("/api/chat", async (req, res) => {
   try {
     if (!process.env.OPENAI_API_KEY) {
       console.error("OPENAI_API_KEY is not set");
-      return res.status(500).json({ error: "OPENAI_API_KEY not set on server" });
-    }
-
-    let OpenAI;
-    try {
-      ({ OpenAI } = require("openai"));
-    } catch (e) {
-      console.error("openai package is not installed or cannot be required:", e);
-      return res.status(500).json({ error: "OpenAI client not available on server" });
+      return res
+        .status(500)
+        .json({ error: "OPENAI_API_KEY not set on the server" });
     }
 
     const client = new OpenAI({
@@ -110,7 +100,7 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-// --- Static frontend (index.html and assets) ---
+// --- Static frontend (index.html and JS/CSS) ---
 app.use(express.static(publicDir));
 
 app.get("/", (req, res) => {
