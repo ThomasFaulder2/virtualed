@@ -12,7 +12,7 @@ app.use(bodyParser.json());
 
 // IMPORTANT: use env var, DO NOT hard-code your key
 const client = new OpenAI({
-  apiKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEeTlq1ompR0zUmYalPertPUz1V9eBtRlQHvnScalsTi"
+  apiKey: "ssh-ed25519AAAAC3NzaC1lZDI1NTE5AAAAIEeTlq1ompR0zUmYalPertPUz1V9eBtRlQHvnScalsTi"
 });
 try {
   require("dotenv").config();
