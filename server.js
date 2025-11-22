@@ -12,9 +12,15 @@ app.use(bodyParser.json());
 
 // IMPORTANT: use env var, DO NOT hard-code your key
 const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEeTlq1ompR0zUmYalPertPUz1V9eBtRlQHvnScalsTi"
 });
-require("dotenv").config();
+try {
+  require("dotenv").config();
+  console.log("dotenv loaded");
+} catch (err) {
+  console.log("dotenv not found, skipping (using Cloud Run env vars only)");
+}
+
 
 // --- AI history chat endpoint ---
 async function callOpenAIWithRetry(client, messages, maxRetries = 3) {
