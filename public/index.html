@@ -343,7 +343,7 @@
   </div>
 
   <script>
-    const CSV_URL = "https://storage.googleapis.com/virtualed-466321_cloudbuild/Master_Excel.csv";
+    const CSV_URL = "/api/master-csv";
 
     const state = {
       seriesMap: {},    // id -> { id, introVideoUrl, cases: [...] }
@@ -794,16 +794,34 @@
     // --- Initial load ---
 
     async function loadCsv() {
-      try {
-        const res = await fetch(CSV_URL);
-        const text = await res.text();
-        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-        state.seriesMap = buildSeries(parsed.data);
-        renderIdList();
-      } catch (err) {
-        document.getElementById("id-list").textContent = "Error loading CSV: " + err.message;
-      }
+  try {
+    console.log("Fetching CSV from:", CSV_URL);
+    const res = await fetch(CSV_URL);
+    console.log("CSV HTTP status:", res.status);
+
+    if (!res.ok) {
+      throw new Error("HTTP " + res.status);
     }
+
+    const text = await res.text();
+    console.log("First 200 chars of CSV:", text.slice(0, 200));
+
+    const parsed = Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true
+    });
+
+    console.log("Parsed headers:", Object.keys(parsed.data[0] || {}));
+    state.seriesMap = buildSeries(parsed.data);
+    console.log("Series IDs found:", Object.keys(state.seriesMap));
+    renderIdList();
+  } catch (err) {
+    console.error("CSV load error:", err);
+    document.getElementById("id-list").textContent =
+      "Error loading CSV: " + err.message;
+  }
+}
+
 
     document.addEventListener("DOMContentLoaded", loadCsv);
   </script>
