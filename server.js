@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 8080;
 const publicDir = path.join(__dirname, "public");
 
 // === CSV from Google Cloud Storage ===
-const CSV_URL = "https://storage.googleapis.com/virtualed-466321_cloudbuild/Master_Excel.csv";
+const CSV_URL = path.join(publicDir, "Master_Excel.csv");
 
 app.use(bodyParser.json());
 
