@@ -1,69 +1,59 @@
-// server.js
-
-// Load environment variables ASAP
-require("dotenv").config();
+// server.js (CommonJS version)
 
 const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
 const { OpenAI } = require("openai");
-const fetch = require("node-fetch"); // ensure fetch exists regardless of Node version
 
-// === CONFIG ===
-const CSV_URL = "https://storage.googleapis.com/virtualed-466321_cloudbuild/Master_Excel.csv";
-const PORT = process.env.PORT || 8080;
-
-// === EXPRESS APP ===
 const app = express();
 app.use(bodyParser.json());
 
-// --- OpenAI client (do NOT hard-code keys) ---
+// IMPORTANT: use env var, DO NOT hard-code your key
 const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // set this in Cloud Run env vars
+  apiKey: process.env.OPENAI_API_KEY
 });
+require("dotenv").config();
 
-// Simple test / stub chat endpoint
-app.post("/api/chat", (req, res) => {
-  console.log("Hit /api/chat test stub");
-  res.json({ reply: "Test reply from stub endpoint." });
-});
-
-// --- CSV proxy route ---
-app.get("/api/master-csv", async (req, res) => {
-  console.log("Hit /api/master-csv TEST stub");
-
+// --- AI history chat endpoint ---
+app.post("/api/chat", async (req, res) => {
   try {
-    const csv = "col1,col2\nhello,world\n";
-    res.type("text/csv").send(csv);
+    const userMessages = req.body.messages || [];
+
+    const messages = [
+      {
+        role: "system",
+        content:
+          "You are roleplaying as a patient for a medical student. " +
+          "Answer strictly as the patient, focusing on symptoms, history, and concerns. " +
+          "Do NOT give diagnoses, investigations, or management advice."
+      },
+      ...userMessages
+    ];
+
+    const completion = await client.chat.completions.create({
+      model: "gpt-5.1-mini",
+      messages
+    });
+
+    const reply = completion.choices[0]?.message?.content || "";
+    res.json({ reply });
   } catch (err) {
-    console.error("Error in /api/master-csv stub:", err);
-    res.type("text/csv").send("");
+    console.error("OpenAI chat error:", err);
+    res.status(500).json({ error: "OpenAI chat error" });
   }
 });
 
-
-// --- Static frontend ---
+// --- Serve static frontend from ./public ---
 const publicDir = path.join(__dirname, "public");
 app.use(express.static(publicDir));
 
-// Root route
+// Health check / root
 app.get("/", (req, res) => {
   res.sendFile(path.join(publicDir, "index.html"));
 });
 
-// --- Error handler (must be after routes) ---
-app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-  if (req.url.startsWith("/api/")) {
-    return res.status(500).json({
-      error: "Something went wrong on the server.",
-      details: err.message,
-    });
-  }
-  res.status(500).send("Something went wrong.");
-});
-
 // --- Start server ---
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
