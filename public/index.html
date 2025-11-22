@@ -5,13 +5,13 @@
   <title>Virtual ED Cases</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- PapaParse for robust CSV parsing -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
   <style>
+    /* --- Reset & Base --- */
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: #f3f4f6;
       color: #111827;
       display: flex;
@@ -19,53 +19,90 @@
       overflow: hidden;
     }
 
+    /* --- Sidebar (Series List) --- */
     #sidebar {
       width: 260px;
       background: #111827;
       color: #f9fafb;
       padding: 1rem;
-      box-sizing: border-box;
-      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #374151;
+      flex-shrink: 0;
     }
 
     #sidebar h1 {
-      font-size: 1.2rem;
-      margin: 0 0 1rem 0;
+      font-size: 1.25rem;
+      margin: 0 0 1.5rem 0;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    #id-list {
+      overflow-y: auto;
+      flex: 1;
     }
 
     .id-button {
       display: block;
       width: 100%;
       text-align: left;
-      padding: 0.5rem 0.75rem;
-      border-radius: 0.5rem;
-      border: none;
-      margin-bottom: 0.25rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 0.375rem;
+      border: 1px solid transparent;
+      margin-bottom: 0.5rem;
       background: #1f2937;
-      color: inherit;
+      color: #d1d5db;
       cursor: pointer;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .id-button:hover {
+      background: #374151;
+      color: white;
     }
 
     .id-button.active {
       background: #2563eb;
+      color: white;
+      font-weight: 500;
     }
 
+    /* --- Main Layout --- */
     #main {
       flex: 1;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      min-width: 0; /* Prevent flex overflow */
     }
 
     #top-panel {
-      padding: 0.75rem 1rem;
-      background: #111827;
-      color: #f9fafb;
+      padding: 0.75rem 1.5rem;
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      height: 60px;
       box-sizing: border-box;
+    }
+
+    #top-panel .breadcrumbs {
+      font-weight: 600;
+      color: #111827;
+    }
+
+    #top-panel .flow-indicator {
+      font-size: 0.8rem;
+      color: #6b7280;
+      display: none; /* Hidden on small screens, shown on large */
+    }
+    @media(min-width: 768px) {
+      #top-panel .flow-indicator { display: block; }
     }
 
     #content {
@@ -74,19 +111,28 @@
       overflow: hidden;
     }
 
+    /* --- Secondary Sidebar (Case List) --- */
     #case-list {
-      width: 260px;
+      width: 280px;
       border-right: 1px solid #e5e7eb;
       background: #f9fafb;
-      padding: 0.75rem;
-      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .case-list-scroll {
+      padding: 1rem;
       overflow-y: auto;
+      flex: 1;
     }
 
     #case-list h2 {
-      font-size: 1rem;
-      margin-top: 0;
-      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      color: #6b7280;
+      letter-spacing: 0.05em;
+      margin: 1rem 0 0.5rem 0;
     }
 
     .case-button {
@@ -94,23 +140,30 @@
       width: 100%;
       text-align: left;
       padding: 0.5rem 0.75rem;
-      border-radius: 0.5rem;
-      border: none;
-      margin-bottom: 0.25rem;
-      background: #e5e7eb;
+      border-radius: 0.375rem;
+      border: 1px solid #e5e7eb;
+      margin-bottom: 0.5rem;
+      background: white;
+      color: #374151;
       cursor: pointer;
       font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .case-button:hover {
+      border-color: #9ca3af;
     }
 
     .case-button.active {
       background: #2563eb;
-      color: #f9fafb;
+      color: white;
+      border-color: #2563eb;
     }
 
+    /* --- Viewer Area --- */
     #case-viewer {
       flex: 1;
-      padding: 1rem;
-      box-sizing: border-box;
+      padding: 2rem;
       overflow-y: auto;
       background: #f3f4f6;
     }
@@ -118,253 +171,234 @@
     .card {
       background: white;
       border-radius: 0.75rem;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
     .section-title {
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      font-size: 1rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 0.75rem;
+      border-bottom: 2px solid #f3f4f6;
+      padding-bottom: 0.5rem;
     }
 
+    .text-content {
+      line-height: 1.6;
+      color: #374151;
+      white-space: pre-wrap;
+    }
+
+    /* --- Header & Images --- */
     .case-header {
       display: flex;
-      gap: 1rem;
+      gap: 1.5rem;
       align-items: flex-start;
-      margin-bottom: 0.75rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
     }
 
     .case-header img {
-      max-width: 180px;
-      border-radius: 0.75rem;
+      width: 150px;
+      height: 150px;
+      border-radius: 0.5rem;
       object-fit: cover;
       border: 1px solid #e5e7eb;
+      background: #f3f4f6;
     }
 
     .badge {
-      display: inline-block;
-      padding: 0.15rem 0.45rem;
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.6rem;
       border-radius: 999px;
       font-size: 0.75rem;
+      font-weight: 600;
       background: #e5e7eb;
-      margin-right: 0.25rem;
+      color: #4b5563;
+      margin-right: 0.5rem;
     }
 
+    /* --- Buttons & Inputs --- */
     .flow-nav {
       display: flex;
       justify-content: space-between;
-      margin-top: 0.75rem;
-      gap: 0.5rem;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid #f3f4f6;
     }
 
     .btn {
-      padding: 0.45rem 0.9rem;
-      border-radius: 999px;
+      padding: 0.6rem 1.2rem;
+      border-radius: 0.5rem;
       border: none;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: opacity 0.2s;
     }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .btn-primary {
-      background: #2563eb;
-      color: #f9fafb;
-    }
-
-    .btn-secondary {
-      background: #e5e7eb;
-      color: #111827;
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-secondary { background: #e5e7eb; color: #374151; }
 
     video {
       width: 100%;
-      max-height: 360px;
-      border-radius: 0.75rem;
-      margin-top: 0.5rem;
-      background: #000;
-    }
-
-    /* MCQ + SA styles */
-    .mcq-options label {
-      display: block;
-      margin-bottom: 0.25rem;
-    }
-
-    .feedback {
-      margin-top: 0.5rem;
-      padding: 0.5rem 0.75rem;
       border-radius: 0.5rem;
-      font-size: 0.9rem;
+      background: black;
+      margin-top: 1rem;
+      max-height: 400px;
     }
 
-    .feedback.correct {
-      background: #dcfce7;
-      color: #166534;
-    }
-
-    .feedback.incorrect {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    .sa-answer {
-      width: 100%;
-      min-height: 60px;
-      padding: 0.4rem;
-      border-radius: 0.5rem;
-      border: 1px solid #d1d5db;
-      resize: vertical;
-      font-size: 0.85rem;
-      box-sizing: border-box;
-    }
-
-    .sa-correct {
-      margin-top: 0.3rem;
-      font-size: 0.85rem;
-      color: #374151;
-    }
-
-    /* Chat styles */
+    /* --- Chat Interface --- */
     #chat-container {
       display: flex;
       flex-direction: column;
-      border-radius: 0.75rem;
+      height: 400px;
       border: 1px solid #e5e7eb;
-      margin-top: 0.5rem;
-      overflow: hidden;
+      border-radius: 0.75rem;
       background: #f9fafb;
-      max-height: 320px;
+      margin-top: 1rem;
     }
 
     #chat-messages {
       flex: 1;
-      padding: 0.5rem;
+      padding: 1rem;
       overflow-y: auto;
-      font-size: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
     }
 
     .chat-message {
-      margin-bottom: 0.35rem;
-      padding: 0.35rem 0.6rem;
-      border-radius: 0.6rem;
       max-width: 80%;
-      white-space: pre-wrap;
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
     }
 
     .chat-message.user {
-      margin-left: auto;
+      align-self: flex-end;
       background: #2563eb;
-      color: #f9fafb;
+      color: white;
+      border-bottom-right-radius: 0.2rem;
     }
 
     .chat-message.assistant {
-      margin-right: auto;
-      background: #e5e7eb;
+      align-self: flex-start;
+      background: white;
+      border: 1px solid #e5e7eb;
+      color: #374151;
+      border-bottom-left-radius: 0.2rem;
+    }
+    
+    .chat-message.system-hidden {
+        display: none;
     }
 
     #chat-input {
-      display: flex;
+      padding: 0.75rem;
+      background: white;
       border-top: 1px solid #e5e7eb;
+      border-bottom-left-radius: 0.75rem;
+      border-bottom-right-radius: 0.75rem;
+      display: flex;
+      gap: 0.5rem;
     }
 
     #chat-textarea {
       flex: 1;
-      border: none;
-      padding: 0.4rem;
-      font-size: 0.85rem;
+      padding: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
       resize: none;
-      outline: none;
-      background: white;
+      font-family: inherit;
+    }
+    
+    #check-answers-btn {
+        margin-top: 1rem;
     }
 
-    #chat-send {
-      border: none;
-      padding: 0.4rem 0.8rem;
-      background: #2563eb;
-      color: #f9fafb;
-      font-size: 0.85rem;
-      cursor: pointer;
-    }
-
+    /* --- Mobile --- */
     @media (max-width: 900px) {
-      body {
-        flex-direction: column;
-      }
-      #sidebar {
-        width: 100%;
-        height: auto;
-      }
-      #content {
-        flex-direction: column;
-      }
-      #case-list {
-        width: 100%;
-        height: 160px;
-        border-right: none;
-        border-bottom: 1px solid #e5e7eb;
-      }
+      body { flex-direction: column; height: 100vh; }
+      #sidebar { width: 100%; height: auto; padding: 0.5rem; flex-direction: row; align-items: center; overflow-x: auto; }
+      #sidebar h1 { margin: 0 1rem 0 0; font-size: 1rem; }
+      #id-list { display: flex; flex-direction: row; gap: 0.5rem; }
+      .id-button { margin: 0; width: auto; }
+      
+      #content { flex-direction: column; }
+      #case-list { width: 100%; height: auto; max-height: 200px; border-right: none; border-bottom: 1px solid #e5e7eb; }
+      #case-viewer { padding: 1rem; }
     }
   </style>
 </head>
 <body>
+
   <div id="sidebar">
     <h1>Virtual ED</h1>
-    <div id="id-list">Loading cases…</div>
+    <div id="id-list">Loading...</div>
   </div>
 
   <div id="main">
     <div id="top-panel">
-      <div id="current-id-label">Select a series on the left</div>
-      <div style="font-size:0.8rem;opacity:0.8;">
-        Flow: History → Exam → Investigations → Management → Questions → Debrief
+      <div id="current-id-label" class="breadcrumbs">Select a Series</div>
+      <div class="flow-indicator">
+        History → Exam → Investigate → Manage → Quiz → Debrief
       </div>
     </div>
 
     <div id="content">
       <div id="case-list">
-        <h2>Cases</h2>
-        <div id="intro-video-container"></div>
-        <div id="case-buttons"></div>
+        <div class="case-list-scroll">
+          <div id="intro-video-container"></div>
+          <div id="case-buttons"></div>
+        </div>
       </div>
 
       <div id="case-viewer">
         <div class="card">
           <div class="section-title">Welcome</div>
-          <p>Select a series (ID) from the left, then choose a case to begin.</p>
+          <p>Please select a Series ID from the left, then a specific Case.</p>
         </div>
       </div>
     </div>
   </div>
 
   <script>
+    /* --- Config & State --- */
     const CSV_URL = "Master_Excel.csv";
-
+    
     const state = {
-      seriesMap: {},    // id -> { id, introVideoUrl, cases: [...] }
+      seriesMap: {},
       currentId: null,
       currentCaseIndex: null,
-      currentStep: 0,   // 0 history, 1 exam, 2 investigations, 3 management, 4 questions, 5 debrief
-      chatMessages: []
+      currentStep: 0,
+      chatMessages: [] 
     };
 
+    const STEPS = ["History", "Examination", "Investigations", "Management", "Questions", "Debrief"];
+
+    /* --- Helpers --- */
     function slugify(str) {
-      return (str || "")
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, "_");
+      return (str || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
     }
 
+    /* --- 1. Data Parsing --- */
     function buildSeries(rows) {
       const seriesMap = {};
 
       rows.forEach(row => {
-        const id = (row["ID"] || "").trim();
+        // Robust ID fetching
+        const id = (row["ID"] || row["id"] || "").trim();
         if (!id) return;
 
         if (!seriesMap[id]) {
@@ -376,12 +410,15 @@
           };
         }
 
-        const diseaseName = (row["Disease_name"] || "").trim();
+        const diseaseName = (row["Disease_name"] || "Unknown Case").trim();
         const diseaseSlug = slugify(diseaseName);
 
+        // Patient Name Parsing (Handle "Name@Age" or just "Name")
         const patientNameRaw = row["Patient_name"] || "";
-        const patientParts = patientNameRaw.split("@");
-        const patientName = (patientParts[1] || patientParts[0] || "").trim();
+        let patientName = patientNameRaw;
+        if (patientNameRaw.includes("@")) {
+            patientName = patientNameRaw.split("@")[1].trim();
+        }
 
         const caseObj = {
           id,
@@ -391,6 +428,7 @@
           examText: row["Examination_text"] || "",
           invText: row["Investigations_text"] || "",
           managementText: row["Management_text"] || "",
+          // Quiz Data
           mcqQuestion: row["MCQ_question_1"] || "",
           mcqOptions: {
             A: row["MCQ_question_1_A"] || "",
@@ -402,6 +440,7 @@
           sa1Answer: row["SA_answer_1"] || "",
           sa2Question: row["SA_question_2"] || "",
           sa2Answer: row["SA_answer_2"] || "",
+          // Media
           historyVideoUrl: `https://storage.googleapis.com/virtualed-466321_cloudbuild/videos/${diseaseSlug}.MOV`,
           debriefVideoUrl: `https://storage.googleapis.com/virtualed-466321_cloudbuild/debrief_videos2/${diseaseSlug}.mp4`,
           imageUrl: `https://storage.googleapis.com/virtualed-466321_cloudbuild/images/${diseaseSlug}.jpeg`
@@ -409,421 +448,344 @@
 
         seriesMap[id].cases.push(caseObj);
       });
-
       return seriesMap;
     }
 
+    /* --- 2. UI Rendering: ID List --- */
     function renderIdList() {
-      const idListEl = document.getElementById("id-list");
-      idListEl.innerHTML = "";
-
+      const el = document.getElementById("id-list");
+      el.innerHTML = "";
+      
       const ids = Object.keys(state.seriesMap).sort();
-      if (!ids.length) {
-        idListEl.textContent = "No cases found in CSV.";
-        return;
+      if(ids.length === 0) {
+          el.innerHTML = "<small style='color:#9ca3af'>No data found.</small>";
+          return;
       }
 
       ids.forEach(id => {
-        const button = document.createElement("button");
-        button.className = "id-button" + (state.currentId === id ? " active" : "");
-        button.textContent = id;
-        button.onclick = () => {
+        const btn = document.createElement("button");
+        btn.className = "id-button" + (state.currentId === id ? " active" : "");
+        btn.textContent = id;
+        btn.title = id; // tooltip for long names
+        btn.onclick = () => {
           state.currentId = id;
           state.currentCaseIndex = null;
           state.currentStep = 0;
-          state.chatMessages = [];
           document.getElementById("current-id-label").textContent = `Series: ${id}`;
-          renderIdList();
+          renderIdList(); // re-render to update active state
           renderCaseList();
           renderCaseViewer();
         };
-        idListEl.appendChild(button);
+        el.appendChild(btn);
       });
     }
 
+    /* --- 3. UI Rendering: Case List --- */
     function renderCaseList() {
-      const container = document.getElementById("case-buttons");
-      const introContainer = document.getElementById("intro-video-container");
-      container.innerHTML = "";
-      introContainer.innerHTML = "";
+      const btnContainer = document.getElementById("case-buttons");
+      const vidContainer = document.getElementById("intro-video-container");
+      btnContainer.innerHTML = "";
+      vidContainer.innerHTML = "";
 
-      if (!state.currentId) {
-        return;
-      }
+      if (!state.currentId) return;
 
       const series = state.seriesMap[state.currentId];
-      if (!series) return;
 
-      // Intro video for this series
-      const introCard = document.createElement("div");
-      introCard.className = "card";
-      introCard.innerHTML = `
-        <div class="section-title">Series Intro</div>
-        <p>Watch this introduction before starting the cases.</p>
-        <video controls src="${series.introVideoUrl}"></video>
-      `;
-      introContainer.appendChild(introCard);
+      // 3a. Series Intro Video
+      if (series.introVideoUrl) {
+        const vDiv = document.createElement("div");
+        vDiv.style.marginBottom = "1.5rem";
+        vDiv.innerHTML = `
+            <div style="font-size:0.8rem; font-weight:700; margin-bottom:0.3rem;">SERIES INTRO</div>
+            <video src="${series.introVideoUrl}" controls style="width:100%; max-height:150px;" onerror="this.style.display='none'"></video>
+        `;
+        vidContainer.appendChild(vDiv);
+      }
 
-      // Case buttons
-      const title = document.createElement("div");
-      title.className = "section-title";
-      title.textContent = "Cases in this series";
-      container.appendChild(title);
+      // 3b. Case Buttons
+      if (series.cases.length > 0) {
+          const h2 = document.createElement("h2");
+          h2.textContent = "Cases";
+          btnContainer.appendChild(h2);
+      }
 
-      series.cases.forEach((c, index) => {
-        const button = document.createElement("button");
-        const isActive = state.currentCaseIndex === index;
-        button.className = "case-button" + (isActive ? " active" : "");
-        button.textContent = c.diseaseName || `Case ${index + 1}`;
-        button.onclick = () => {
-          state.currentCaseIndex = index;
+      series.cases.forEach((c, idx) => {
+        const btn = document.createElement("button");
+        const isActive = (state.currentCaseIndex === idx);
+        btn.className = "case-button" + (isActive ? " active" : "");
+        btn.textContent = c.diseaseName;
+        btn.onclick = () => {
+          state.currentCaseIndex = idx;
           state.currentStep = 0;
-          state.chatMessages = [];
+          state.chatMessages = []; // Reset chat
           renderCaseList();
           renderCaseViewer();
         };
-        container.appendChild(button);
+        btnContainer.appendChild(btn);
       });
     }
 
+    /* --- 4. UI Rendering: Main Viewer --- */
     function renderCaseViewer() {
       const viewer = document.getElementById("case-viewer");
       viewer.innerHTML = "";
 
       if (!state.currentId || state.currentCaseIndex == null) {
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `
-          <div class="section-title">Select a case</div>
-          <p>Choose a case from the list to begin.</p>
-        `;
-        viewer.appendChild(card);
+        viewer.innerHTML = `
+            <div class="card" style="text-align:center; padding:3rem;">
+                <h3 style="margin-top:0;">Ready to start?</h3>
+                <p style="color:#6b7280;">Select a case from the menu to begin.</p>
+            </div>`;
         return;
       }
 
-      const series = state.seriesMap[state.currentId];
-      const caseObj = series.cases[state.currentCaseIndex];
+      const caseObj = state.seriesMap[state.currentId].cases[state.currentCaseIndex];
 
-      const stepTitles = [
-        "History",
-        "Examination",
-        "Investigations",
-        "Management",
-        "MCQ & Short Answer Questions",
-        "Debrief"
-      ];
-
+      // Wrapper Card
       const card = document.createElement("div");
       card.className = "card";
 
-      // Header
-      const headerHtml = `
+      // 4a. Header
+      card.innerHTML = `
         <div class="case-header">
-          <div style="flex:1;">
-            <div class="badge">Series: ${caseObj.id}</div>
-            <div class="badge">Case ${state.currentCaseIndex + 1}</div>
-            <h2 style="margin:0.3rem 0;">${caseObj.diseaseName}</h2>
-            <div style="font-size:0.9rem;color:#4b5563;">Patient: ${caseObj.patientName || "Unnamed"}</div>
+          <div style="flex:1">
+            <div>
+                <span class="badge">Case ${state.currentCaseIndex + 1}</span>
+                <span class="badge" style="background:#dbeafe; color:#1e40af;">${STEPS[state.currentStep]}</span>
+            </div>
+            <h2 style="margin:0.5rem 0;">${caseObj.diseaseName}</h2>
+            <div style="color:#6b7280;">Patient: <strong>${caseObj.patientName}</strong></div>
           </div>
-          <img src="${caseObj.imageUrl}" alt="Case image" onerror="this.style.display='none';" />
-        </div>
-
-        <div style="font-size:0.85rem;color:#6b7280;margin-bottom:0.5rem;">
-          Step ${state.currentStep + 1} of 6 • ${stepTitles[state.currentStep]}
+          <img src="${caseObj.imageUrl}" alt="Clinical Image" onerror="this.style.display='none'" />
         </div>
       `;
 
-      card.innerHTML = headerHtml;
+      // 4b. Step Content
+      const contentDiv = document.createElement("div");
+      
+      if (state.currentStep === 0) {
+          // HISTORY
+          contentDiv.innerHTML = `
+            <div class="section-title">History</div>
+            <p class="text-content">${caseObj.historyText}</p>
+            <video src="${caseObj.historyVideoUrl}" controls onerror="this.style.display='none'"></video>
+            
+            <div style="margin-top:2rem; padding-top:1rem; border-top:1px dashed #e5e7eb;">
+                <h3 style="font-size:1rem;">Chat with the Patient (AI)</h3>
+                <p style="font-size:0.85rem; color:#6b7280;">Ask about symptoms, onset, and pain.</p>
+                <div id="chat-root"></div>
+            </div>
+          `;
+          // Mount Chat
+          setTimeout(() => setupChat(contentDiv.querySelector("#chat-root"), caseObj), 0);
 
-      // Step content
-      const stepContainer = document.createElement("div");
+      } else if (state.currentStep === 1) {
+          // EXAM
+          contentDiv.innerHTML = `
+            <div class="section-title">Examination Findings</div>
+            <p class="text-content">${caseObj.examText || "No specific findings recorded."}</p>
+          `;
+      } else if (state.currentStep === 2) {
+          // INVESTIGATIONS
+          contentDiv.innerHTML = `
+            <div class="section-title">Investigations</div>
+            <p class="text-content">${caseObj.invText || "No investigations recorded."}</p>
+          `;
+      } else if (state.currentStep === 3) {
+          // MANAGEMENT
+          contentDiv.innerHTML = `
+             <div class="section-title">Management</div>
+             <p class="text-content">${caseObj.managementText || "No management details."}</p>
+          `;
+      } else if (state.currentStep === 4) {
+          // QUESTIONS (MCQ + SA)
+          contentDiv.innerHTML = `
+            <div class="section-title">Multiple Choice</div>
+            <p style="font-weight:500; margin-bottom:1rem;">${caseObj.mcqQuestion || "No question."}</p>
+            <div style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1rem;">
+                <label><input type="radio" name="mcq" value="A"> ${caseObj.mcqOptions.A}</label>
+                <label><input type="radio" name="mcq" value="B"> ${caseObj.mcqOptions.B}</label>
+                <label><input type="radio" name="mcq" value="C"> ${caseObj.mcqOptions.C}</label>
+                <label><input type="radio" name="mcq" value="D"> ${caseObj.mcqOptions.D}</label>
+            </div>
+            <div id="mcq-feedback" style="margin-bottom:2rem;"></div>
 
-      switch (state.currentStep) {
-        case 0:
-          stepContainer.appendChild(renderHistoryStep(caseObj));
-          break;
-        case 1:
-          stepContainer.appendChild(renderTextStep("Examination findings", caseObj.examText));
-          break;
-        case 2:
-          stepContainer.appendChild(renderTextStep("Investigation findings", caseObj.invText));
-          break;
-        case 3:
-          stepContainer.appendChild(renderTextStep("Management", caseObj.managementText));
-          break;
-        case 4:
-          stepContainer.appendChild(renderQuestionsStep(caseObj));
-          break;
-        case 5:
-          stepContainer.appendChild(renderDebriefStep(caseObj));
-          break;
+            <div class="section-title">Short Answer</div>
+            <div style="margin-bottom:1rem;">
+                <p style="font-weight:500;">1. ${caseObj.sa1Question || "Question 1"}</p>
+                <textarea id="sa1" class="text-content" style="width:100%; border:1px solid #ccc; border-radius:4px; padding:0.5rem;" rows="2"></textarea>
+                <div id="sa1-ans" style="display:none; margin-top:0.5rem; color:#059669; font-size:0.9rem; background:#ecfdf5; padding:0.5rem;">Answer: ${caseObj.sa1Answer}</div>
+            </div>
+            <div style="margin-bottom:1rem;">
+                <p style="font-weight:500;">2. ${caseObj.sa2Question || "Question 2"}</p>
+                <textarea id="sa2" class="text-content" style="width:100%; border:1px solid #ccc; border-radius:4px; padding:0.5rem;" rows="2"></textarea>
+                <div id="sa2-ans" style="display:none; margin-top:0.5rem; color:#059669; font-size:0.9rem; background:#ecfdf5; padding:0.5rem;">Answer: ${caseObj.sa2Answer}</div>
+            </div>
+            
+            <button id="check-answers-btn" class="btn btn-primary">Check Answers</button>
+          `;
+
+          // Bind Check Logic
+          setTimeout(() => {
+              const btn = document.getElementById("check-answers-btn");
+              if(btn) {
+                  btn.onclick = () => {
+                      // MCQ Check
+                      const sel = document.querySelector('input[name="mcq"]:checked');
+                      const fb = document.getElementById("mcq-feedback");
+                      if(sel) {
+                         if(sel.value === "D") {
+                             fb.innerHTML = `<div style="color:#059669; background:#ecfdf5; padding:0.5rem; border-radius:4px;">✅ Correct! The answer is D.</div>`;
+                         } else {
+                             fb.innerHTML = `<div style="color:#dc2626; background:#fef2f2; padding:0.5rem; border-radius:4px;">❌ Incorrect. The answer is D.</div>`;
+                         }
+                      }
+                      // Show SA Answers
+                      document.getElementById("sa1-ans").style.display = "block";
+                      document.getElementById("sa2-ans").style.display = "block";
+                  }
+              }
+          }, 0);
+
+      } else if (state.currentStep === 5) {
+          // DEBRIEF
+          contentDiv.innerHTML = `
+             <div class="section-title">Debrief & Learning Points</div>
+             <video src="${caseObj.debriefVideoUrl}" controls onerror="this.style.display='none'"></video>
+             <p style="margin-top:1rem;">Congratulations on completing this case!</p>
+          `;
       }
 
-      card.appendChild(stepContainer);
+      card.appendChild(contentDiv);
 
-      // Nav buttons
+      // 4c. Navigation
       const nav = document.createElement("div");
       nav.className = "flow-nav";
-
-      const backBtn = document.createElement("button");
-      backBtn.className = "btn btn-secondary";
-      backBtn.textContent = "Back";
-      backBtn.disabled = state.currentStep === 0;
-      backBtn.onclick = () => {
-        if (state.currentStep > 0) {
-          state.currentStep -= 1;
-          renderCaseViewer();
-        }
-      };
-
-      const nextBtn = document.createElement("button");
-      nextBtn.className = "btn btn-primary";
-      nextBtn.textContent = state.currentStep === 5 ? "Finish case" : "Next";
-      nextBtn.onclick = () => {
-        if (state.currentStep < 5) {
-          state.currentStep += 1;
-          renderCaseViewer();
-        } else {
-          // Finished case → back to case list
-          state.currentStep = 0;
-          renderCaseViewer();
-        }
-      };
-
-      nav.appendChild(backBtn);
-      nav.appendChild(nextBtn);
-
+      nav.innerHTML = `
+        <button id="btn-back" class="btn btn-secondary" ${state.currentStep === 0 ? "disabled" : ""}>Back</button>
+        <button id="btn-next" class="btn btn-primary">${state.currentStep === 5 ? "Finish Case" : "Next Step"}</button>
+      `;
+      
       card.appendChild(nav);
       viewer.appendChild(card);
-    }
-
-    function renderHistoryStep(caseObj) {
-      const container = document.createElement("div");
-
-      const historyHtml = `
-        <div class="section-title">History</div>
-        <p style="white-space:pre-wrap;font-size:0.9rem;">${caseObj.historyText || "No history text provided."}</p>
-        <div style="margin-top:0.5rem;">
-          <div style="font-weight:600;margin-bottom:0.25rem;">History video</div>
-          <video controls src="${caseObj.historyVideoUrl}"></video>
-        </div>
-        <div style="margin-top:0.75rem;font-size:0.9rem;">
-          <strong>Optional:</strong> Take an AI history from a chatbot roleplaying as the patient.
-        </div>
-      `;
-      container.innerHTML = historyHtml;
-
-      // Chat UI
-      const chat = document.createElement("div");
-      chat.id = "chat-container";
-
-      chat.innerHTML = `
-        <div id="chat-messages"></div>
-        <div id="chat-input">
-          <textarea id="chat-textarea" rows="2" placeholder="Ask the patient a question..." ></textarea>
-          <button id="chat-send">Send</button>
-        </div>
-      `;
-
-      container.appendChild(chat);
-
-      setupChat();
-
-      return container;
-    }
-
-    function renderTextStep(title, text) {
-      const container = document.createElement("div");
-      container.innerHTML = `
-        <div class="section-title">${title}</div>
-        <p style="white-space:pre-wrap;font-size:0.9rem;">${text || "No content provided."}</p>
-      `;
-      return container;
-    }
-
-    function renderQuestionsStep(caseObj) {
-      const container = document.createElement("div");
-
-      const mcqHtml = `
-        <div class="section-title">MCQ</div>
-        <p style="white-space:pre-wrap;font-size:0.9rem;">${caseObj.mcqQuestion || "No MCQ question provided."}</p>
-        <div class="mcq-options">
-          <label><input type="radio" name="mcq" value="A"> A. ${caseObj.mcqOptions.A}</label>
-          <label><input type="radio" name="mcq" value="B"> B. ${caseObj.mcqOptions.B}</label>
-          <label><input type="radio" name="mcq" value="C"> C. ${caseObj.mcqOptions.C}</label>
-          <label><input type="radio" name="mcq" value="D"> D. ${caseObj.mcqOptions.D}</label>
-        </div>
-      `;
-
-      const saHtml = `
-        <div class="section-title" style="margin-top:1rem;">Short answer questions</div>
-
-        <div style="margin-bottom:0.75rem;">
-          <div style="font-weight:500;">1) ${caseObj.sa1Question || "No SAQ 1 provided."}</div>
-          <textarea class="sa-answer" id="sa1-answer" placeholder="Your answer..."></textarea>
-          <div class="sa-correct" id="sa1-correct" style="display:none;"></div>
-        </div>
-
-        <div style="margin-bottom:0.75rem;">
-          <div style="font-weight:500;">2) ${caseObj.sa2Question || "No SAQ 2 provided."}</div>
-          <textarea class="sa-answer" id="sa2-answer" placeholder="Your answer..."></textarea>
-          <div class="sa-correct" id="sa2-correct" style="display:none;"></div>
-        </div>
-
-        <button class="btn btn-secondary" id="check-answers-btn">Check answers</button>
-        <div id="mcq-feedback"></div>
-      `;
-
-      container.innerHTML = mcqHtml + saHtml;
-
-      const checkBtn = container.querySelector("#check-answers-btn");
-      const mcqFeedbackEl = container.querySelector("#mcq-feedback");
-
-      checkBtn.onclick = () => {
-        const selected = container.querySelector("input[name='mcq']:checked");
-        const selectedValue = selected ? selected.value : null;
-
-        mcqFeedbackEl.innerHTML = "";
-        if (!selectedValue) {
-          const fb = document.createElement("div");
-          fb.className = "feedback incorrect";
-          fb.textContent = "Please select an option.";
-          mcqFeedbackEl.appendChild(fb);
-        } else {
-          const fb = document.createElement("div");
-          if (selectedValue === "D") {
-            fb.className = "feedback correct";
-            fb.textContent = "Correct! The MCQ answer is D.";
+      
+      // Bind Nav
+      document.getElementById("btn-back").onclick = () => {
+          if(state.currentStep > 0) { state.currentStep--; renderCaseViewer(); }
+      };
+      document.getElementById("btn-next").onclick = () => {
+          if(state.currentStep < 5) { 
+              state.currentStep++; 
+              renderCaseViewer(); 
           } else {
-            fb.className = "feedback incorrect";
-            fb.textContent = "Not quite. The correct answer is D.";
+              // Finish
+              state.currentStep = 0;
+              state.currentCaseIndex = null;
+              renderCaseViewer();
           }
-          mcqFeedbackEl.appendChild(fb);
-        }
-
-        // Show SA correct answers
-        const sa1Correct = container.querySelector("#sa1-correct");
-        const sa2Correct = container.querySelector("#sa2-correct");
-        sa1Correct.style.display = "block";
-        sa2Correct.style.display = "block";
-        sa1Correct.textContent = "Suggested answer: " + (caseObj.sa1Answer || "No model answer provided.");
-        sa2Correct.textContent = "Suggested answer: " + (caseObj.sa2Answer || "No model answer provided.");
       };
-
-      return container;
     }
 
-    function renderDebriefStep(caseObj) {
-      const container = document.createElement("div");
-      container.innerHTML = `
-        <div class="section-title">Debrief</div>
-        <p style="font-size:0.9rem;">Watch the debrief video discussing key learning points for this case.</p>
-        <video controls src="${caseObj.debriefVideoUrl}"></video>
+    /* --- 5. Chat Logic --- */
+    function setupChat(rootEl, caseObj) {
+      rootEl.innerHTML = `
+        <div id="chat-container">
+            <div id="chat-messages"></div>
+            <div id="chat-input">
+                <textarea id="chat-txt" rows="1" placeholder="Type your question..."></textarea>
+                <button id="chat-send" class="btn btn-primary" style="padding:0.5rem 1rem;">Send</button>
+            </div>
+        </div>
       `;
-      return container;
-    }
 
-    // --- Chat / AI history ---
+      const msgContainer = rootEl.querySelector("#chat-messages");
+      const txt = rootEl.querySelector("#chat-txt");
+      const btn = rootEl.querySelector("#chat-send");
 
-    function setupChat() {
-      const messagesEl = document.getElementById("chat-messages");
-      const textarea = document.getElementById("chat-textarea");
-      const sendBtn = document.getElementById("chat-send");
-
-      if (!messagesEl || !textarea || !sendBtn) return;
-
-      function renderMessages() {
-        messagesEl.innerHTML = "";
-        state.chatMessages.forEach(m => {
-          const div = document.createElement("div");
-          div.className = "chat-message " + (m.role === "user" ? "user" : "assistant");
-          div.textContent = m.content;
-          messagesEl.appendChild(div);
-        });
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-      }
-
-      sendBtn.onclick = async () => {
-        const text = textarea.value.trim();
-        if (!text) return;
-        textarea.value = "";
-
-        state.chatMessages.push({ role: "user", content: text });
-        renderMessages();
-
-        // Call backend /api/chat (you will implement this in server.js)
-        sendBtn.disabled = true;
-        sendBtn.textContent = "…";
-
-        try {
-          const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: state.chatMessages })
-          });
-
-          if (!response.ok) {
-            throw new Error("Chat request failed");
-          }
-          const data = await response.json();
-          const reply = data.reply || "Sorry, I couldn't generate a response.";
-          state.chatMessages.push({ role: "assistant", content: reply });
-        } catch (err) {
+      // Initial System Context Injection (Hidden from user, visible to API)
+      // This ensures the AI knows WHO to roleplay.
+      if (state.chatMessages.length === 0) {
           state.chatMessages.push({
-            role: "assistant",
-            content: "There was a problem contacting the AI history service. Please try again later."
+              role: "system",
+              content: `IMPORTANT: You are acting as a patient named ${caseObj.patientName}. 
+              Your medical history is: "${caseObj.historyText}". 
+              Only answer what a patient would know. Do not give medical advice.`
           });
-        } finally {
-          sendBtn.disabled = false;
-          sendBtn.textContent = "Send";
-          renderMessages();
-        }
-      };
-
-      // Show a starting system message
-      if (!state.chatMessages.length) {
-        state.chatMessages.push({
-          role: "assistant",
-          content: "I'm the patient. Ask me about my symptoms, history and concerns."
-        });
+          // Visible greeting
+          state.chatMessages.push({
+              role: "assistant",
+              content: "Hello doctor. I'm not feeling well."
+          });
       }
 
-      renderMessages();
+      function renderMsgs() {
+          msgContainer.innerHTML = "";
+          state.chatMessages.forEach(m => {
+              // Hide system instructions from UI
+              if(m.role === "system") return;
+              
+              const d = document.createElement("div");
+              d.className = `chat-message ${m.role}`;
+              d.textContent = m.content;
+              msgContainer.appendChild(d);
+          });
+          // Scroll to bottom
+          msgContainer.scrollTop = msgContainer.scrollHeight;
+      }
+
+      renderMsgs();
+
+      btn.onclick = async () => {
+          const val = txt.value.trim();
+          if(!val) return;
+          
+          // Add User Message
+          state.chatMessages.push({ role: "user", content: val });
+          txt.value = "";
+          renderMsgs();
+
+          // Loading State
+          btn.disabled = true;
+          btn.textContent = "...";
+
+          try {
+              const res = await fetch("/api/chat", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ messages: state.chatMessages })
+              });
+              
+              if(!res.ok) throw new Error("API Error");
+              
+              const data = await res.json();
+              state.chatMessages.push({ role: "assistant", content: data.reply });
+          } catch(e) {
+              console.error(e);
+              state.chatMessages.push({ role: "assistant", content: "System: Connection error. Please try again." });
+          } finally {
+              btn.disabled = false;
+              btn.textContent = "Send";
+              renderMsgs();
+          }
+      };
     }
 
-    // --- Initial load ---
-
-    async function loadCsv() {
-  try {
-    console.log("Fetching CSV from:", CSV_URL);
-    const res = await fetch(CSV_URL);
-    console.log("CSV HTTP status:", res.status);
-
-    if (!res.ok) {
-      throw new Error("HTTP " + res.status);
+    /* --- 6. Boot --- */
+    async function init() {
+        try {
+            const res = await fetch(CSV_URL);
+            if(!res.ok) throw new Error("Failed to load CSV");
+            const text = await res.text();
+            
+            const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+            state.seriesMap = buildSeries(parsed.data);
+            renderIdList();
+        } catch(e) {
+            document.getElementById("id-list").innerHTML = `<div style="padding:1rem; color:red;">Error: ${e.message}</div>`;
+        }
     }
 
-    const text = await res.text();
-    console.log("First 200 chars of CSV:", text.slice(0, 200));
-
-    const parsed = Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true
-    });
-
-    console.log("Parsed headers:", Object.keys(parsed.data[0] || {}));
-    state.seriesMap = buildSeries(parsed.data);
-    console.log("Series IDs found:", Object.keys(state.seriesMap));
-    renderIdList();
-  } catch (err) {
-    console.error("CSV load error:", err);
-    document.getElementById("id-list").textContent =
-      "Error loading CSV: " + err.message;
-  }
-}
-
-
-    document.addEventListener("DOMContentLoaded", loadCsv);
+    window.addEventListener("DOMContentLoaded", init);
   </script>
 </body>
 </html>
