@@ -30,25 +30,17 @@ app.post("/api/chat", (req, res) => {
 
 // --- CSV proxy route ---
 app.get("/api/master-csv", async (req, res) => {
-  console.log("GET /api/master-csv -> fetching from GCS:", CSV_URL);
+  console.log("Hit /api/master-csv TEST stub");
+
   try {
-    const response = await fetch(CSV_URL);
-
-    console.log("GCS response status:", response.status);
-
-    if (!response.ok) {
-      const bodyText = await response.text().catch(() => "<unable to read body>");
-      console.error("Failed to fetch CSV from GCS:", response.status, bodyText);
-      return res.status(500).send("Failed to fetch CSV from storage");
-    }
-
-    const text = await response.text();
-    res.type("text/csv").send(text);
+    const csv = "col1,col2\nhello,world\n";
+    res.type("text/csv").send(csv);
   } catch (err) {
-    console.error("Error fetching CSV from GCS:", err);
-    res.status(500).send("Error fetching CSV");
+    console.error("Error in /api/master-csv stub:", err);
+    res.type("text/csv").send("");
   }
 });
+
 
 // --- Static frontend ---
 const publicDir = path.join(__dirname, "public");
