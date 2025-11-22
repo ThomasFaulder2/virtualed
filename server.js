@@ -11,7 +11,6 @@ const PORT = process.env.PORT || 8080;
 
 // === CSV from Google Cloud Storage ===
 const CSV_URL = "https://storage.googleapis.com/virtualed-466321_cloudbuild/Master_Excel.csv";
-
 // Parse JSON bodies (for /api/chat)
 app.use(bodyParser.json());
 
